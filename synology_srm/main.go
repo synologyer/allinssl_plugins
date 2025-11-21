@@ -5,12 +5,12 @@ import (
 )
 
 var pluginMeta = map[string]any{
-	"name":        "synology_dsm",
-	"description": "部署到Synology_Nas",
+	"name":        "synology_srm",
+	"description": "部署到Synology_Router",
 	"version":     "1.0.0",
 	"author":      "synologyer",
 	"config": map[string]any{
-		"url":      "Synology_Nas 主机IP或域名，包含协议和端口，例如：https://example.com 或 https://0.0.0.0:5001",
+		"url":      "Synology_Router 主机IP或域名，包含协议和端口，例如：https://example.com 或 https://0.0.0.0:8001",
 		"username": "Synology 用户名",
 		"password": "Synology 密码",
 	},
