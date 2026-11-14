@@ -64,6 +64,7 @@ export default function (host) {
         url: config.url || '',
         username: config.username || '',
         password: config.password || '',
+        cert_desc: config.cert_desc || '',
         as_default: toBool(config.as_default, false),
         skip_verify: toBool(config.skip_verify, true),
       })
@@ -108,6 +109,7 @@ export default function (host) {
           url: model.url.trim(),
           username: model.username.trim(),
           password: model.password,
+          cert_desc: model.cert_desc.trim(),
           as_default: model.as_default,
           skip_verify: model.skip_verify,
         }
@@ -174,8 +176,18 @@ export default function (host) {
               '账号不能开启两步验证',
             ),
             item(
+              '证书描述',
+              h(ui.NInput, {
+                value: model.cert_desc,
+                placeholder: '留空则为 allinssl-证书的第一个域名',
+                'onUpdate:value': value => (model.cert_desc = value),
+              }),
+              '证书在群晖中显示的描述。每次部署都会按这个描述找到原证书并原位替换，原证书的默认状态和服务绑定保持不变',
+            ),
+            item(
               '设为默认证书',
               h(ui.NSwitch, { value: model.as_default, 'onUpdate:value': value => (model.as_default = value) }),
+              '关闭时保持群晖里原有的设置：被替换的证书原本是默认证书的，替换后仍是默认证书',
             ),
             item(
               '跳过证书校验',
@@ -199,7 +211,7 @@ export default function (host) {
     title: NODE_TITLE,
     icon: 'deploy',
     order: 6,
-    defaultConfig: { url: '', username: '', password: '', as_default: false, skip_verify: true },
+    defaultConfig: { url: '', username: '', password: '', cert_desc: '', as_default: false, skip_verify: true },
     summary,
     validate,
     form: DeployForm,

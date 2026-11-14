@@ -13,6 +13,7 @@ import (
 
 	"github.com/synologyer/allinssl_plugins/internal/certutil"
 	"github.com/synologyer/allinssl_plugins/internal/module"
+	"github.com/synologyer/allinssl_plugins/internal/synology"
 	"github.com/synologyer/allinssl_plugins/internal/testcert"
 )
 
@@ -54,7 +55,7 @@ func TestParseConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.URL != "https://nas:5001" || cfg.AsDefault || !cfg.SkipVerify {
+	if cfg.URL != "https://nas:5001" || cfg.AsDefault || !cfg.SkipVerify || cfg.Desc != "" {
 		t.Errorf("默认值不正确: %+v", cfg)
 	}
 
@@ -63,8 +64,9 @@ func TestParseConfig(t *testing.T) {
 		params := base()
 		params["as_default"] = value
 		params["skip_verify"] = "false"
+		params["cert_desc"] = " 我的证书 "
 		cfg, err := parseConfig(params)
-		if err != nil || !cfg.AsDefault || cfg.SkipVerify {
+		if err != nil || !cfg.AsDefault || cfg.SkipVerify || cfg.Desc != "我的证书" {
 			t.Errorf("as_default=%#v: cfg=%+v err=%v", value, cfg, err)
 		}
 	}
@@ -161,8 +163,9 @@ func TestInvokeReportsSkip(t *testing.T) {
 			io.WriteString(w, `{"success":true,"data":{"sid":"s","synotoken":"t"}}`)
 		case "list":
 			if existing {
-				io.WriteString(w, `{"success":true,"data":{"certificates":[{"id":"1","desc":"`+bundle.GetNoteShort()+
-					`","subject":{"sub_alt_name":["nas.example.com"]},"valid_till":"Jan  5 12:00:00 2099 GMT"}]}}`)
+				validTill := bundle.NotAfter.UTC().Format("Jan _2 15:04:05 2006") + " GMT"
+				io.WriteString(w, `{"success":true,"data":{"certificates":[{"id":"1","desc":"`+synology.DefaultDesc(bundle)+
+					`","subject":{"sub_alt_name":["nas.example.com"]},"valid_till":"`+validTill+`"}]}}`)
 				return
 			}
 			io.WriteString(w, `{"success":true,"data":{"certificates":[]}}`)

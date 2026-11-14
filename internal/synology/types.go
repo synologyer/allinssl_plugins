@@ -18,17 +18,22 @@ type loginData struct {
 
 // certificateList 证书列表返回数据
 type certificateList struct {
-	Certificates []struct {
-		ID      string `json:"id"`   // 证书ID
-		Desc    string `json:"desc"` // 证书描述
-		Subject struct {
-			SubAltName []string `json:"sub_alt_name"` // 证书域名
-		} `json:"subject"`
-		ValidTill string `json:"valid_till"` // 证书过期时间
-	} `json:"certificates"`
+	Certificates []certificateInfo `json:"certificates"`
+}
+
+// certificateInfo 设备上的一条证书记录
+type certificateInfo struct {
+	ID        string `json:"id"`         // 证书ID
+	Desc      string `json:"desc"`       // 证书描述
+	IsDefault bool   `json:"is_default"` // 是否为默认证书
+	Subject   struct {
+		SubAltName []string `json:"sub_alt_name"` // 证书域名
+	} `json:"subject"`
+	ValidTill string `json:"valid_till"` // 证书过期时间
 }
 
 // certificateImport 证书导入返回数据
 type certificateImport struct {
-	ID string `json:"id"`
+	ID           string `json:"id"`
+	RestartHttpd bool   `json:"restart_httpd"` // 群晖是否因此重启了网页服务
 }

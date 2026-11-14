@@ -86,6 +86,9 @@ func parseConfig(params map[string]any) (synology.Config, error) {
 	if cfg.Password, err = requiredString(params, "password", "密码"); err != nil {
 		return cfg, err
 	}
+	if desc, ok := params["cert_desc"].(string); ok {
+		cfg.Desc = strings.TrimSpace(desc)
+	}
 	if cfg.AsDefault, err = optionalBool(params, "as_default", false); err != nil {
 		return cfg, err
 	}

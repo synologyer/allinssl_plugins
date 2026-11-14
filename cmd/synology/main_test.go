@@ -166,7 +166,7 @@ func TestHostProtocol(t *testing.T) {
 	invoke, _ := json.Marshal(module.Invoke{
 		Kind: "workflow", Target: "plugin:synology:synology_deploy", Stage: "replace", Handler: "deploy",
 		Params: map[string]any{
-			"url": device.URL, "username": "admin", "password": "secret", "as_default": true,
+			"url": device.URL, "username": "admin", "password": "secret", "as_default": false,
 			"certificate": map[string]any{"cert": certPEM, "key": keyPEM},
 			"_runId":      "1", "NodeId": "node-1",
 		},
