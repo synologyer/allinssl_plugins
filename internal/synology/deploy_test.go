@@ -237,6 +237,7 @@ func TestEnsureAPIPath(t *testing.T) {
 		"https://nas.example.com:5001/":                 "https://nas.example.com:5001/webapi/entry.cgi",
 		" http://192.168.1.2:5000 ":                     "http://192.168.1.2:5000/webapi/entry.cgi",
 		"https://nas.example.com:5001/webapi/entry.cgi": "https://nas.example.com:5001/webapi/entry.cgi",
+		"https://nas.example.com":                       "https://nas.example.com/webapi/entry.cgi",
 		"https://example.com/dsm":                       "https://example.com/dsm/webapi/entry.cgi",
 	}
 	for input, want := range cases {

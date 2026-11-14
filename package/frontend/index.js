@@ -18,7 +18,7 @@ function toBool(value, fallback) {
 function validate(config) {
   const url = String(config.url || '').trim()
   if (!url) return '请填写设备地址'
-  if (!/^https?:\/\/[^/\s]+/i.test(url)) return '设备地址需包含协议和端口，例如 https://192.168.1.2:5001'
+  if (!/^https?:\/\/[^/\s]+/i.test(url)) return '设备地址需以 http:// 或 https:// 开头，例如 https://192.168.1.2:5001'
   if (!String(config.username || '').trim()) return '请填写用户名'
   if (!config.password) return '请填写密码'
   return ''
@@ -121,7 +121,14 @@ export default function (host) {
         props.save(next)
       }
 
-      const item = (label, control, feedback) => h(ui.NFormItem, { label, feedback }, () => control)
+      // 说明文字用普通的次要文字显示，不占用表单项的校验提示位置（那里会显示成报错的红色）。
+      const item = (label, control, hint) =>
+        h(ui.NFormItem, { label }, () =>
+          h('div', { style: 'width: 100%' }, [
+            control,
+            hint ? h('div', { style: 'margin-top: 4px; font-size: 12px; line-height: 1.5; opacity: 0.6' }, hint) : null,
+          ]),
+        )
 
       return () =>
         h('div', { class: 'synology-deploy-form' }, [
@@ -144,7 +151,7 @@ export default function (host) {
                 placeholder: 'https://192.168.1.2:5001',
                 'onUpdate:value': value => (model.url = value),
               }),
-              '包含协议和端口。NAS（DSM）默认 HTTPS 端口 5001，路由器（SRM）默认 8001',
+              '以 http:// 或 https:// 开头。不写端口时使用默认端口（http 为 80，https 为 443）；直连设备时 NAS 一般是 5001，路由器是 8001',
             ),
             item(
               '用户名',

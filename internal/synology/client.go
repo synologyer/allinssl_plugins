@@ -18,7 +18,7 @@ type Client struct {
 	sid      string // 会话标识，用于登出
 }
 
-// NewClient 创建客户端，baseURL 需包含协议和端口，例如 https://192.168.1.2:5001
+// NewClient 创建客户端，baseURL 需包含协议，端口可省略，例如 https://192.168.1.2:5001 或 https://nas.example.com
 // https://kb.synology.cn/zh-cn/DG/DSM_Login_Web_API_Guide/1
 func NewClient(baseURL, username, password string, skipVerify bool) (*Client, error) {
 	apiURL, err := ensureAPIPath(baseURL)
