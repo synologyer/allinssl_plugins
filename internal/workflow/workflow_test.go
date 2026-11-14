@@ -2,12 +2,16 @@ package workflow
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/synologyer/allinssl_plugins/internal/certutil"
 	"github.com/synologyer/allinssl_plugins/internal/module"
 	"github.com/synologyer/allinssl_plugins/internal/testcert"
 )
@@ -135,5 +139,52 @@ func TestInvokeReportsConfigError(t *testing.T) {
 	reply := Invoke(context.Background(), module.Invoke{Kind: "workflow", Handler: HandlerDeploy, Params: map[string]any{}})
 	if !strings.Contains(reply.Error, "url") {
 		t.Fatalf("应提示缺少设备地址，实际: %q", reply.Error)
+	}
+}
+
+// 设备上已有同一张证书时输出 skip，实际上传时不输出数据，与内置部署节点一致。
+func TestInvokeReportsSkip(t *testing.T) {
+	certPEM, keyPEM, err := testcert.Valid("nas.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := certutil.ParseCertBundle([]byte(certPEM), []byte(keyPEM))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	existing := false
+	device := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("method") {
+		case "login":
+			io.WriteString(w, `{"success":true,"data":{"sid":"s","synotoken":"t"}}`)
+		case "list":
+			if existing {
+				io.WriteString(w, `{"success":true,"data":{"certificates":[{"id":"1","desc":"`+bundle.GetNoteShort()+
+					`","subject":{"sub_alt_name":["nas.example.com"]},"valid_till":"Jan  5 12:00:00 2099 GMT"}]}}`)
+				return
+			}
+			io.WriteString(w, `{"success":true,"data":{"certificates":[]}}`)
+		default:
+			io.WriteString(w, `{"success":true,"data":{"id":"1"}}`)
+		}
+	}))
+	defer device.Close()
+
+	call := module.Invoke{Kind: "workflow", Handler: HandlerDeploy, Params: map[string]any{
+		"url": device.URL, "username": "admin", "password": "secret",
+		"certificate": map[string]any{"cert": certPEM, "key": keyPEM},
+	}}
+
+	if reply := Invoke(context.Background(), call); reply.Error != "" || reply.Result != nil {
+		t.Fatalf("实际上传时不应输出数据: %+v", reply)
+	}
+
+	existing = true
+	reply := Invoke(context.Background(), call)
+	result, _ := reply.Result.(map[string]any)
+	if reply.Error != "" || result["skip"] != true {
+		t.Fatalf("证书已存在时应输出 skip: %+v", reply)
 	}
 }

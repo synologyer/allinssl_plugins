@@ -37,34 +37,40 @@ func Invoke(ctx context.Context, call module.Invoke) module.Reply {
 	if call.Kind != "workflow" || call.Handler != HandlerDeploy {
 		return module.Reply{Error: fmt.Sprintf("不支持的调用: %s/%s", call.Kind, call.Handler)}
 	}
-	if err := deploy(ctx, call.Params); err != nil {
+	existed, err := deploy(ctx, call.Params)
+	if err != nil {
 		log.Printf("部署到群晖失败: %v", err)
 		return module.Reply{Error: err.Error()}
 	}
-	// 与内置部署节点一致，不向后续节点输出数据。
+	// 与内置部署节点一致：实际上传时不输出数据；证书已存在而跳过时输出 skip，
+	// 后续的通知节点据此可以不重复发送通知。
+	if existed {
+		return module.Reply{Result: map[string]any{"skip": true}}
+	}
 	return module.Reply{}
 }
 
-func deploy(ctx context.Context, params map[string]any) error {
+// deploy 执行部署，existed 表示设备上已有同一张证书而未重复上传。
+func deploy(ctx context.Context, params map[string]any) (existed bool, err error) {
 	cfg, err := parseConfig(params)
 	if err != nil {
-		return err
+		return false, err
 	}
 	bundle, err := parseCertificate(params)
 	if err != nil {
-		return err
+		return false, err
 	}
 	log.Printf("开始部署到 %s（用户 %s，证书域名 %v）", cfg.URL, cfg.Username, bundle.DNSNames)
-	existed, err := synology.Deploy(ctx, cfg, bundle)
+	existed, err = synology.Deploy(ctx, cfg, bundle)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if existed {
 		log.Printf("证书已存在于 %s，跳过上传: %v", cfg.URL, bundle.DNSNames)
 	} else {
 		log.Printf("证书已上传到 %s: %v", cfg.URL, bundle.DNSNames)
 	}
-	return nil
+	return existed, nil
 }
 
 // parseConfig 读取节点配置。
