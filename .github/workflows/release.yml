@@ -1,0 +1,46 @@
+name: 构建并发布
+
+# 每次推送到 main 都会重新构建，并把压缩包放到 Releases 页面。
+# 版本号取自 package/plugin.json：版本号没变时更新该版本的压缩包，变了则新建一个版本。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: 测试
+        run: make vet test
+
+      - name: 打包
+        run: make package
+
+      - name: 发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package/plugin.json)
+          tag="v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/*.zip dist/*.tar.gz --clobber
+          else
+            gh release create "$tag" dist/*.zip dist/*.tar.gz \
+              --target "$GITHUB_SHA" \
+              --title "$tag" \
+              --notes "下载与设备处理器对应的压缩包（Intel/AMD 选 amd64，ARM 选 arm64），解压后把 synology 文件夹放入 ALLinSSL 的插件目录。详见 README。"
+          fi

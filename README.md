@@ -13,38 +13,27 @@
 | ALLinSSL | v1.1.4 及以上（带「插件管理」页面的版本） |
 | 运行平台 | Linux amd64 / arm64 |
 | 群晖账号 | 属于管理员组，且 **未开启两步验证** |
-| 构建（可选） | Go 1.25 及以上、make |
 
 > 本仓库 1.x 版本是旧式的「部署插件」（单个可执行文件 `synology_dsm` / `synology_srm`）。2.0.0 起改为模块插件，两者安装和使用方式不同，迁移方法见 [从 1.x 迁移](#从-1x-迁移)。
 
 ## 安装
 
-### 1. 获取插件目录
+### 1. 下载
 
-在本仓库根目录执行：
+打开本仓库的 [Releases 页面](https://github.com/synologyer/allinssl_plugins/releases/latest)，下载与运行 ALLinSSL 的机器处理器对应的压缩包：
 
-```bash
-make package
-```
+| 处理器 | 下载 |
+| --- | --- |
+| Intel / AMD（`uname -m` 显示 `x86_64`） | `synology_<版本>_linux_amd64.zip` |
+| ARM（`uname -m` 显示 `aarch64`） | `synology_<版本>_linux_arm64.zip` |
 
-会在 `dist/` 下生成各平台的发布包：
-
-```text
-dist/synology_2.0.0_linux_amd64.tar.gz
-dist/synology_2.0.0_linux_arm64.tar.gz
-```
-
-只需要当前机器架构的版本时，执行 `make build`，直接得到 `dist/synology/` 目录。
+同时提供内容相同的 `.tar.gz`，习惯用命令行的可以下载它。
 
 ### 2. 放入 ALLinSSL 插件目录
 
-把与服务器架构对应的包解压到 ALLinSSL 的插件目录（默认是 ALLinSSL 运行目录下的 `plugins`）：
+解压得到 `synology` 文件夹，把它整个复制到 ALLinSSL 的插件目录（默认是 ALLinSSL 运行目录下的 `plugins`）。用 Docker 运行时，复制到映射出来的插件目录即可，例如群晖上的 `/volume2/docker/allinssl/plugins/`。
 
-```bash
-tar -xzf synology_2.0.0_linux_amd64.tar.gz -C /path/to/allinssl/plugins/
-```
-
-解压后的结构必须如下，**目录名必须是 `synology`**，不能改名：
+复制后的结构必须如下，**文件夹名必须是 `synology`**，不能改名：
 
 ```text
 plugins/
@@ -141,6 +130,8 @@ internal/testcert/   测试用自签名证书
 package/             随插件发布的清单和前端入口
 ```
 
+需要 Go 1.25 及以上和 make。
+
 ```bash
 make help      # 显示可用命令
 make build     # 生成 dist/synology（当前系统和架构）
@@ -150,7 +141,7 @@ make vet       # 静态检查
 make fmt       # 格式化代码
 ```
 
-发布新版本时，修改 `package/plugin.json` 中的 `version`，构建时会自动写入后端程序。
+每次推送到 `main`，GitHub Actions 会自动测试、打包并把压缩包发布到 Releases 页面。发布新版本时，修改 `package/plugin.json` 中的 `version` 再推送即可；版本号不变时，只更新该版本下的压缩包。
 
 ### 工作原理
 

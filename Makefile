@@ -13,12 +13,14 @@ build: ## 按当前系统和架构生成插件目录 dist/synology
 	@$(MAKE) --no-print-directory bundle TARGET=. GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH)
 	@echo "已生成 dist/$(PLUGIN_ID)"
 
-package: ## 生成各平台的发布包 dist/synology_<版本>_<系统>_<架构>.tar.gz
+package: ## 生成各平台的发布包 dist/synology_<版本>_<系统>_<架构>.zip 和 .tar.gz
 	@for platform in $(PLATFORMS); do \
 		os=$${platform%/*}; arch=$${platform#*/}; \
 		$(MAKE) --no-print-directory bundle TARGET=$$os-$$arch GOOS=$$os GOARCH=$$arch || exit 1; \
-		tar -czf dist/$(PLUGIN_ID)_$(VERSION)_$${os}_$${arch}.tar.gz -C dist/$$os-$$arch $(PLUGIN_ID) || exit 1; \
-		echo "已生成 dist/$(PLUGIN_ID)_$(VERSION)_$${os}_$${arch}.tar.gz"; \
+		name=$(PLUGIN_ID)_$(VERSION)_$${os}_$${arch}; \
+		tar -czf dist/$$name.tar.gz -C dist/$$os-$$arch $(PLUGIN_ID) || exit 1; \
+		(cd dist/$$os-$$arch && zip -qr ../$$name.zip $(PLUGIN_ID)) || exit 1; \
+		echo "已生成 dist/$$name.tar.gz 和 dist/$$name.zip"; \
 	done
 
 # 内部目标：把清单、前端入口和后端程序组装成 dist/<TARGET>/synology
