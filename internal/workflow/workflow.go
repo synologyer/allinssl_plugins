@@ -15,8 +15,11 @@ import (
 )
 
 // 节点名称与处理器名称，前端入口 package/frontend/index.js 中的节点名需与此一致。
+//
+// 节点名不能与宿主内置节点（apply、deploy、upload、notify 等）同名：
+// 宿主前端会把同名节点当作内置节点处理，导致注册失败。
 const (
-	NodeDeploy    = "deploy"
+	NodeDeploy    = "synology_deploy"
 	HandlerDeploy = "deploy"
 )
 

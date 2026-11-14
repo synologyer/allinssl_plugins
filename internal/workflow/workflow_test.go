@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -19,6 +21,23 @@ func TestRegistration(t *testing.T) {
 	}
 	if !identifier.MatchString(nodes[0].Name) || nodes[0].Handler == "" {
 		t.Fatalf("节点声明无效: %+v", nodes[0])
+	}
+
+	// 宿主前端把这些名称当作内置节点，插件节点不能与之同名
+	builtin := []string{"apply", "deploy", "upload", "notify", "private_ca", "start", "branch", "condition", "execute_result_branch", "execute_result_condition"}
+	for _, name := range builtin {
+		if nodes[0].Name == name {
+			t.Fatalf("节点名 %q 与宿主内置节点同名", name)
+		}
+	}
+
+	// 前端入口注册的节点名必须与后端一致
+	entry, err := os.ReadFile(filepath.Join("..", "..", "package", "frontend", "index.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(entry), "const NODE_NAME = '"+nodes[0].Name+"'") {
+		t.Fatalf("前端入口的节点名与后端 %q 不一致", nodes[0].Name)
 	}
 }
 

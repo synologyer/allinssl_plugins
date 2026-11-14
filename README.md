@@ -91,7 +91,7 @@ plugins/
 
 ## 从 1.x 迁移
 
-1. 按上面的步骤安装并启用 2.0.0
+1. 按上面的步骤安装并启用 2.x
 2. 在工作流中，把原来「部署」节点里选择 `synology_dsm` / `synology_srm` 插件的那一步，换成新的「部署到群晖」节点，并重新填写设备地址、用户名和密码
 3. 确认新节点工作正常后，删除插件目录下旧的 `synology_dsm`、`synology_srm` 可执行文件，以及授权 API 管理中对应的旧授权
 
@@ -147,6 +147,6 @@ make fmt       # 格式化代码
 
 ALLinSSL 启动 `bin/synology` 并通过环境变量下发凭据；后端程序监听本机回环端口，把地址写到标准输出。之后：
 
-- ALLinSSL 请求 `GET /api/workflow`，得到插件注册的节点 `deploy`，在工作流中对应节点类型 `plugin:synology:deploy`
+- ALLinSSL 请求 `GET /api/workflow`，得到插件注册的节点 `synology_deploy`，在工作流中对应节点类型 `plugin:synology:synology_deploy`
 - 工作流执行到该节点时，ALLinSSL 请求 `POST /invoke`，把节点配置和证书交给插件，插件调用群晖 Web API 完成导入
 - 前端入口 `frontend/index.js` 向工作流编辑器注册节点的标题、摘要和配置表单

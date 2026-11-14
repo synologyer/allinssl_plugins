@@ -2,9 +2,10 @@
 //
 // 宿主以 ES 模块方式加载本文件并调用默认导出，传入 Vue、Naive UI 等宿主能力。
 // 这里只做一件事：向工作流注册「部署到群晖」节点及其配置表单。
-// 节点名 deploy 需与后端 internal/workflow 中注册的节点名一致。
+// 节点名需与后端 internal/workflow 中注册的节点名一致，且不能与宿主内置节点
+// （apply、deploy、upload、notify 等）同名，否则宿主会按内置节点处理而注册失败。
 
-const NODE_NAME = 'deploy'
+const NODE_NAME = 'synology_deploy'
 const NODE_TITLE = '部署到群晖'
 
 // 字符串 "true"/"false" 与布尔值都按布尔处理

@@ -131,7 +131,7 @@ func TestHostProtocol(t *testing.T) {
 
 	// 工作流注册表
 	response, data := call("GET", "/api/workflow", "")
-	if response.StatusCode != http.StatusOK || !strings.Contains(string(data), `"name":"deploy"`) {
+	if response.StatusCode != http.StatusOK || !strings.Contains(string(data), `"name":"synology_deploy"`) {
 		t.Fatalf("工作流注册表不正确: %d %s", response.StatusCode, data)
 	}
 
@@ -163,7 +163,7 @@ func TestHostProtocol(t *testing.T) {
 		t.Fatal(err)
 	}
 	invoke, _ := json.Marshal(module.Invoke{
-		Kind: "workflow", Target: "plugin:synology:deploy", Stage: "replace", Handler: "deploy",
+		Kind: "workflow", Target: "plugin:synology:synology_deploy", Stage: "replace", Handler: "deploy",
 		Params: map[string]any{
 			"url": device.URL, "username": "admin", "password": "secret", "as_default": true,
 			"certificate": map[string]any{"cert": certPEM, "key": keyPEM},
