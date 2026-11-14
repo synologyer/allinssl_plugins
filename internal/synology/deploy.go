@@ -88,6 +88,8 @@ func (c *Client) deployCertificate(ctx context.Context, bundle *certutil.CertBun
 	// 设备上已经是这张证书：最多只需要调整默认状态
 	if target != nil && target.sameAs(bundle) {
 		if !asDefault || target.IsDefault {
+			log.Printf("设备上已是这张证书（描述「%s」，ID %s，默认证书: %v，节点要求设为默认: %v），无需修改",
+				target.Desc, target.ID, target.IsDefault, asDefault)
 			return true, nil
 		}
 		log.Printf("证书「%s」已在设备上，仅设为默认证书", target.Desc)
