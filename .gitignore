@@ -1,0 +1,11 @@
+# 构建产物
+/dist/
+
+# 编辑器与系统文件
+.idea/
+.vscode/
+.DS_Store
+
+# 测试输出
+*.test
+*.out
