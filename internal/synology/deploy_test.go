@@ -301,6 +301,24 @@ func TestDeploySkipsSameCertificate(t *testing.T) {
 	}
 }
 
+// Force 为 true 时，同一张证书也重新上传并原位替换
+func TestDeployForceReuploadsSameCertificate(t *testing.T) {
+	fake, cfg := newFakeDSM(t)
+	cfg.Force = true
+	bundle := newBundle(t, "nas.example.com")
+	fake.certs = []*fakeCert{
+		{ID: "abc", Desc: "allinssl-nas.example.com", IsDefault: true, SAN: []string{"nas.example.com"}, ValidTill: formatValidTill(bundle.NotAfter)},
+	}
+
+	existed, err := Deploy(context.Background(), cfg, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if existed || len(fake.imports) != 1 || fake.imports[0]["id"] != "abc" || len(fake.certs) != 1 || !fake.find("abc").IsDefault {
+		t.Fatalf("应原位重新上传并保留默认状态: existed=%v imports=%v", existed, fake.imports)
+	}
+}
+
 // 证书已在设备上但还不是默认证书：只设置默认，不重复上传
 func TestDeploySetsDefaultWithoutUpload(t *testing.T) {
 	fake, cfg := newFakeDSM(t)

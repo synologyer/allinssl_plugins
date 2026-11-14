@@ -22,6 +22,7 @@ type Config struct {
 	Desc       string // 证书在群晖中的描述，留空时使用 DefaultDesc
 	AsDefault  bool   // 是否设为默认证书
 	SkipVerify bool   // 是否跳过设备自身 HTTPS 证书的校验
+	Force      bool   // 设备上已是同一张证书时是否仍然重新上传
 }
 
 // validTillLayout 是群晖返回的证书时间格式，日期为一位数时可能补空格或补零。
@@ -46,7 +47,8 @@ func DefaultDesc(bundle *certutil.CertBundle) string {
 // 原位替换（沿用原证书的 ID），这样原证书的默认状态和各服务的绑定关系都会保留，
 // 群晖会自行重新加载使用该证书的网页服务。找不到时才新建。
 //
-// 设备上已是同一张证书且无需调整默认状态时不做任何修改，返回 existed=true。
+// 设备上已是同一张证书且无需调整默认状态时不做任何修改，返回 existed=true；
+// cfg.Force 为 true 时即使证书相同也重新上传。
 func Deploy(ctx context.Context, cfg Config, bundle *certutil.CertBundle) (existed bool, err error) {
 	if bundle.IsExpired() {
 		return false, fmt.Errorf("证书不在有效期内（%s 至 %s）",
@@ -75,10 +77,10 @@ func Deploy(ctx context.Context, cfg Config, bundle *certutil.CertBundle) (exist
 	if desc == "" {
 		desc = DefaultDesc(bundle)
 	}
-	return client.deployCertificate(ctx, bundle, desc, cfg.AsDefault)
+	return client.deployCertificate(ctx, bundle, desc, cfg.AsDefault, cfg.Force)
 }
 
-func (c *Client) deployCertificate(ctx context.Context, bundle *certutil.CertBundle, desc string, asDefault bool) (existed bool, err error) {
+func (c *Client) deployCertificate(ctx context.Context, bundle *certutil.CertBundle, desc string, asDefault, force bool) (existed bool, err error) {
 	certs, err := c.listCertificates(ctx)
 	if err != nil {
 		return false, err
@@ -86,7 +88,7 @@ func (c *Client) deployCertificate(ctx context.Context, bundle *certutil.CertBun
 	target := findTarget(certs, bundle, desc)
 
 	// 设备上已经是这张证书：最多只需要调整默认状态
-	if target != nil && target.sameAs(bundle) {
+	if target != nil && target.sameAs(bundle) && !force {
 		if !asDefault || target.IsDefault {
 			log.Printf("设备上已是这张证书（描述「%s」，ID %s，默认证书: %v，节点要求设为默认: %v），无需修改",
 				target.Desc, target.ID, target.IsDefault, asDefault)

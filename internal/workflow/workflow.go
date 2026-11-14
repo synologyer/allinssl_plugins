@@ -37,22 +37,30 @@ func Invoke(ctx context.Context, call module.Invoke) module.Reply {
 	if call.Kind != "workflow" || call.Handler != HandlerDeploy {
 		return module.Reply{Error: fmt.Sprintf("不支持的调用: %s/%s", call.Kind, call.Handler)}
 	}
-	existed, err := deploy(ctx, call.Params)
+	skipped, err := deploy(ctx, call.Params)
 	if err != nil {
 		log.Printf("部署到群晖失败: %v", err)
 		return module.Reply{Error: err.Error()}
 	}
-	// 与内置部署节点一致：实际上传时不输出数据；证书已存在而跳过时输出 skip，
+	// 与内置部署节点一致：实际部署时不输出数据；跳过时输出 skip，
 	// 后续的通知节点据此可以不重复发送通知。
-	if existed {
+	if skipped {
 		return module.Reply{Result: map[string]any{"skip": true}}
 	}
 	return module.Reply{}
 }
 
-// deploy 执行部署，existed 表示设备上已有同一张证书而未重复上传。
-func deploy(ctx context.Context, params map[string]any) (existed bool, err error) {
+// deploy 执行部署，skipped 表示证书没有变化而未做任何修改。
+//
+// 「重复部署」选项为跳过时（默认），行为与内置部署节点一致：本节点上次成功部署的
+// 就是这张证书时直接跳过，不连接设备；没有记录时再与设备上的证书比较。
+// 选项为不跳过时，即使证书相同也重新上传并原位替换。
+func deploy(ctx context.Context, params map[string]any) (skipped bool, err error) {
 	cfg, err := parseConfig(params)
+	if err != nil {
+		return false, err
+	}
+	skip, err := optionalBool(params, "skip", true)
 	if err != nil {
 		return false, err
 	}
@@ -60,17 +68,36 @@ func deploy(ctx context.Context, params map[string]any) (existed bool, err error
 	if err != nil {
 		return false, err
 	}
-	log.Printf("开始部署到 %s（用户 %s，证书域名 %v）", cfg.URL, cfg.Username, bundle.DNSNames)
-	existed, err = synology.Deploy(ctx, cfg, bundle)
+
+	nodeID, _ := params["NodeId"].(string)
+	certHash := bundle.GetFingerprintSHA256()
+	targetHash := hashStrings(cfg.URL, cfg.Desc, strconv.FormatBool(cfg.AsDefault))
+	if skip && store.matches(nodeID, certHash, targetHash) {
+		log.Printf("与上次部署到 %s 的证书相同且上次部署成功，跳过重复部署: %v", cfg.URL, bundle.DNSNames)
+		return true, nil
+	}
+
+	cfg.Force = !skip
+	log.Printf("开始部署到 %s（用户 %s，证书域名 %v，重复部署: %s）", cfg.URL, cfg.Username, bundle.DNSNames, skipLabel(skip))
+	existed, err := synology.Deploy(ctx, cfg, bundle)
 	if err != nil {
+		store.forget(nodeID)
 		return false, err
 	}
+	store.save(nodeID, certHash, targetHash)
 	if existed {
-		log.Printf("证书已存在于 %s，跳过上传: %v", cfg.URL, bundle.DNSNames)
+		log.Printf("设备 %s 上已是这张证书，跳过上传: %v", cfg.URL, bundle.DNSNames)
 	} else {
-		log.Printf("证书已上传到 %s: %v", cfg.URL, bundle.DNSNames)
+		log.Printf("证书已部署到 %s: %v", cfg.URL, bundle.DNSNames)
 	}
 	return existed, nil
+}
+
+func skipLabel(skip bool) string {
+	if skip {
+		return "跳过"
+	}
+	return "不跳过"
 }
 
 // parseConfig 读取节点配置。
@@ -134,13 +161,17 @@ func requiredString(params map[string]any, key, label string) (string, error) {
 	return value, nil
 }
 
-// optionalBool 兼容布尔值和 "true"/"false" 字符串两种写法。
+// optionalBool 兼容布尔值、数字 1/0 和 "true"/"false"/"1"/"0" 字符串几种写法。
 func optionalBool(params map[string]any, key string, fallback bool) (bool, error) {
 	switch value := params[key].(type) {
 	case nil:
 		return fallback, nil
 	case bool:
 		return value, nil
+	case float64:
+		return value != 0, nil
+	case int:
+		return value != 0, nil
 	case string:
 		if strings.TrimSpace(value) == "" {
 			return fallback, nil

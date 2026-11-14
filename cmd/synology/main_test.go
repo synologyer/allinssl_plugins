@@ -183,6 +183,12 @@ func TestHostProtocol(t *testing.T) {
 		t.Fatalf("应向设备导入 1 次证书，实际 %d 次", imported)
 	}
 
+	// 同一节点再次部署同一张证书：按上次的部署记录跳过，不再连接设备
+	response, data = call("POST", "/invoke", string(invoke))
+	if response.StatusCode != http.StatusOK || !strings.Contains(string(data), `"skip":true`) || imported != 1 {
+		t.Fatalf("重复部署应跳过: %d %s，导入 %d 次", response.StatusCode, data, imported)
+	}
+
 	// 失败时通过 error 字段返回，不影响进程
 	response, data = call("POST", "/invoke", `{"kind":"workflow","handler":"deploy","params":{}}`)
 	if response.StatusCode != http.StatusOK || !strings.Contains(string(data), `"error"`) {
@@ -205,7 +211,7 @@ func TestHostProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatalf("没有生成日志文件: %v", err)
 	}
-	for _, want := range []string{"证书已上传到", "部署到群晖失败"} {
+	for _, want := range []string{"证书已部署到", "部署到群晖失败"} {
 		if !strings.Contains(string(logData), want) {
 			t.Errorf("日志文件缺少 %q:\n%s", want, logData)
 		}

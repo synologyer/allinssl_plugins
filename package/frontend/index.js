@@ -67,6 +67,8 @@ export default function (host) {
         cert_desc: config.cert_desc || '',
         as_default: toBool(config.as_default, false),
         skip_verify: toBool(config.skip_verify, true),
+        // 与内置部署节点一致，用 1 / 0 保存
+        skip: toBool(config.skip === undefined ? true : String(config.skip) === '1' || config.skip === true, true),
       })
       const error = ref('')
 
@@ -112,6 +114,7 @@ export default function (host) {
           cert_desc: model.cert_desc.trim(),
           as_default: model.as_default,
           skip_verify: model.skip_verify,
+          skip: model.skip ? 1 : 0,
         }
         error.value = validate(next)
         if (error.value) return
@@ -194,6 +197,15 @@ export default function (host) {
               h(ui.NSwitch, { value: model.skip_verify, 'onUpdate:value': value => (model.skip_verify = value) }),
               '设备使用自签名证书或通过 IP 访问时需要开启',
             ),
+            item(
+              '重复部署',
+              h(
+                ui.NSwitch,
+                { value: model.skip, 'onUpdate:value': value => (model.skip = value) },
+                { checked: () => '跳过', unchecked: () => '不跳过' },
+              ),
+              '当与上次部署的证书相同且上次部署成功时是否跳过。选择不跳过时，每次执行都会重新上传并替换',
+            ),
           ]),
           error.value
             ? h(ui.NAlert, { type: 'error', showIcon: false, style: 'margin-bottom: 16px' }, () => error.value)
@@ -211,7 +223,7 @@ export default function (host) {
     title: NODE_TITLE,
     icon: 'deploy',
     order: 6,
-    defaultConfig: { url: '', username: '', password: '', cert_desc: '', as_default: false, skip_verify: true },
+    defaultConfig: { url: '', username: '', password: '', cert_desc: '', as_default: false, skip_verify: true, skip: 1 },
     summary,
     validate,
     form: DeployForm,

@@ -65,6 +65,7 @@ func main() {
 		Invoke:   workflow.Invoke,
 		Workflow: workflow.Registration(),
 	}
+	workflow.SetDataDir(os.Getenv(module.EnvData))
 	log.Printf("插件已启动，版本 %s", version)
 	if err := m.Serve(ctx); err != nil {
 		log.Println(err)

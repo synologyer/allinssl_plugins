@@ -191,3 +191,95 @@ func TestInvokeReportsSkip(t *testing.T) {
 		t.Fatalf("证书已存在时应输出 skip: %+v", reply)
 	}
 }
+
+// 「重复部署」选项：与内置部署节点一致，按本节点上次成功部署的证书判断是否跳过。
+func TestRepeatDeployOption(t *testing.T) {
+	SetDataDir(t.TempDir())
+	t.Cleanup(func() { SetDataDir("") })
+
+	certPEM, keyPEM, err := testcert.Valid("nas.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	requests, imports := 0, 0
+	loginOK := true
+	device := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("method") {
+		case "login":
+			if !loginOK {
+				io.WriteString(w, `{"success":false,"error":{"code":400}}`)
+				return
+			}
+			io.WriteString(w, `{"success":true,"data":{"sid":"s","synotoken":"t"}}`)
+		case "list":
+			io.WriteString(w, `{"success":true,"data":{"certificates":[]}}`)
+		case "import":
+			imports++
+			io.WriteString(w, `{"success":true,"data":{"id":"1"}}`)
+		default:
+			io.WriteString(w, `{"success":true}`)
+		}
+	}))
+	defer device.Close()
+
+	params := func(extra map[string]any) map[string]any {
+		values := map[string]any{
+			"url": device.URL, "username": "admin", "password": "secret", "NodeId": "node-1",
+			"certificate": map[string]any{"cert": certPEM, "key": keyPEM},
+		}
+		for key, value := range extra {
+			values[key] = value
+		}
+		return values
+	}
+	invoke := func(extra map[string]any) module.Reply {
+		return Invoke(context.Background(), module.Invoke{Kind: "workflow", Handler: HandlerDeploy, Params: params(extra)})
+	}
+	skipped := func(reply module.Reply) bool {
+		result, _ := reply.Result.(map[string]any)
+		return result["skip"] == true
+	}
+
+	// 第一次：实际部署
+	if reply := invoke(nil); reply.Error != "" || skipped(reply) || imports != 1 {
+		t.Fatalf("第一次应实际部署: %+v imports=%d", reply, imports)
+	}
+
+	// 第二次：证书相同且上次成功，跳过且不连接设备（默认即为跳过，写成 1 也一样）
+	before := requests
+	for _, extra := range []map[string]any{nil, {"skip": float64(1)}, {"skip": true}} {
+		if reply := invoke(extra); reply.Error != "" || !skipped(reply) {
+			t.Fatalf("应跳过重复部署: %+v", reply)
+		}
+	}
+	if requests != before || imports != 1 {
+		t.Fatalf("跳过时不应连接设备: requests %d -> %d", before, requests)
+	}
+
+	// 其他节点没有部署记录，不受影响
+	if reply := invoke(map[string]any{"NodeId": "node-2"}); reply.Error != "" || skipped(reply) || imports != 2 {
+		t.Fatalf("另一个节点应实际部署: %+v imports=%d", reply, imports)
+	}
+
+	// 选项为不跳过：证书相同也重新上传
+	if reply := invoke(map[string]any{"skip": float64(0)}); reply.Error != "" || skipped(reply) || imports != 3 {
+		t.Fatalf("不跳过时应重新上传: %+v imports=%d", reply, imports)
+	}
+
+	// 目标变了（例如改了证书描述）：重新部署
+	if reply := invoke(map[string]any{"cert_desc": "另一个描述"}); reply.Error != "" || skipped(reply) || imports != 4 {
+		t.Fatalf("修改配置后应重新部署: %+v imports=%d", reply, imports)
+	}
+
+	// 部署失败后清除记录，下次不会被跳过
+	loginOK = false
+	if reply := invoke(map[string]any{"skip": float64(0)}); reply.Error == "" {
+		t.Fatal("登录失败应返回错误")
+	}
+	loginOK = true
+	if reply := invoke(nil); reply.Error != "" || skipped(reply) || imports != 5 {
+		t.Fatalf("上次失败后应重新部署: %+v imports=%d", reply, imports)
+	}
+}
