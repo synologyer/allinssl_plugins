@@ -54,6 +54,7 @@ func deploy(ctx context.Context, params map[string]any) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("开始部署到 %s（用户 %s，证书域名 %v）", cfg.URL, cfg.Username, bundle.DNSNames)
 	existed, err := synology.Deploy(ctx, cfg, bundle)
 	if err != nil {
 		return err

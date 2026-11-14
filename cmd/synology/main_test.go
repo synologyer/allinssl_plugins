@@ -68,8 +68,9 @@ func TestHostProtocol(t *testing.T) {
 	}
 
 	const token = "host-token"
+	dataDir := t.TempDir()
 	cmd := exec.Command(binary)
-	cmd.Env = append(os.Environ(), module.EnvToken+"="+token, module.EnvID+"=synology")
+	cmd.Env = append(os.Environ(), module.EnvToken+"="+token, module.EnvID+"=synology", module.EnvData+"="+dataDir)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	stdin, err := cmd.StdinPipe()
@@ -197,5 +198,16 @@ func TestHostProtocol(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("关闭标准输入后插件没有退出")
+	}
+
+	// 部署结果和失败原因都应写入数据目录下的日志文件
+	logData, err := os.ReadFile(filepath.Join(dataDir, logFileName))
+	if err != nil {
+		t.Fatalf("没有生成日志文件: %v", err)
+	}
+	for _, want := range []string{"证书已上传到", "部署到群晖失败"} {
+		if !strings.Contains(string(logData), want) {
+			t.Errorf("日志文件缺少 %q:\n%s", want, logData)
+		}
 	}
 }
